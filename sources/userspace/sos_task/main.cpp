@@ -15,6 +15,7 @@
 
 constexpr uint32_t symbol_tick_delay = 0x400;
 constexpr uint32_t char_tick_delay = 0x1000;
+constexpr uint32_t long_delay = 0x10000;
 
 uint32_t sos_led;
 uint32_t button;
@@ -29,18 +30,13 @@ void blink(bool short_blink)
 int main(int argc, char** argv)
 {
 	sos_led = open("DEV:gpio/18", NFile_Open_Mode::Write_Only);
-	button = open("DEV:gpio/16", NFile_Open_Mode::Read_Only);
 
 	NGPIO_Interrupt_Type irtype = NGPIO_Interrupt_Type::Rising_Edge;
-	ioctl(button, NIOCtl_Operation::Enable_Event_Detection, &irtype);
 
 	uint32_t logpipe = pipe("log", 32);
 
 	while (true)
 	{
-		// pockame na stisk klavesy
-		wait(button, 1, 0x300);
-
 		// tady by se mohla hodit inverze priorit:
 		// 1) pipe je plna
 		// 2) my mame deadline 0x300
@@ -72,6 +68,8 @@ int main(int argc, char** argv)
 		blink(true);
 		sleep(symbol_tick_delay);
 		blink(true);
+
+		sleep(long_delay);
 	}
 
 	close(button);
