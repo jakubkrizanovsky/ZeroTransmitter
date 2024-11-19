@@ -202,4 +202,26 @@ namespace hal
 		Data_Delay		= 6,
 		CLKT			= 7,	// clock stretch timeout
 	};
+
+	constexpr unsigned long BSC_Slave_Base = Peripheral_Base + 0x00214000;
+
+	enum class BSC_Slave_Reg
+	{
+		Data			= 0,
+		Status			= 1,
+		Slave_Address	= 2,
+		Control			= 3,
+		Flag			= 4,
+		IFLS			= 5,
+		IMSC			= 6,
+		RIS				= 7,
+		MIS				= 8,
+		Interrup_Clear	= 9,
+		DMA_Control		= 10,
+		TDR				= 11,
+		GPU_Status		= 12,
+		Host_Control	= 13,
+		I2C_Debug		= 14,
+		SPI_Debug		= 15,
+	};
 }

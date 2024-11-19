@@ -5,7 +5,6 @@
 #include <drivers/gpio.h>
 #include <process/process_manager.h>
 
-#include <oled.h>
 
 /**
  * SOS blinker task
