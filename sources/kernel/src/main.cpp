@@ -1,7 +1,6 @@
 #include <drivers/gpio.h>
 #include <drivers/uart.h>
 #include <drivers/timer.h>
-#include <drivers/oled_ssd1306.h>
 #include <interrupt_controller.h>
 
 #include <memory/memmap.h>

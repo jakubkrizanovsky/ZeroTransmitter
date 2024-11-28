@@ -28,7 +28,7 @@ void blink(bool short_blink)
 
 int main(int argc, char** argv)
 {
-	sos_led = open("DEV:gpio/18", NFile_Open_Mode::Write_Only);
+	sos_led = open("DEV:gpio/47", NFile_Open_Mode::Write_Only);
 
 	NGPIO_Interrupt_Type irtype = NGPIO_Interrupt_Type::Rising_Edge;
 
