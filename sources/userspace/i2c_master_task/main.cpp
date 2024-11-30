@@ -17,7 +17,6 @@ int main(int argc, char** argv)
 	uint32_t logpipe = pipe("log", 32);
 
 	uint32_t i2c_file = open("DEV:i2c/1", NFile_Open_Mode::Read_Write);
-
 	TI2C_IOCtl_Params params;
 	params.address = 2;
 	ioctl(i2c_file, NIOCtl_Operation::Set_Params, &params);

@@ -31,7 +31,6 @@ bool CI2C_Slave::Open()
     if (!AI2C_Base::Open()) 
         return false;
 
-    Reg(hal::BSC_Slave_Reg::Slave_Address) = 1; //Hardcoded slave address 1 for now
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // enable device + I2C mode
 
     return true;
@@ -46,24 +45,13 @@ void CI2C_Slave::Close()
 
 void CI2C_Slave::Send(uint8_t addr, const char* buffer, uint32_t len)
 {
-    // Reg(hal::BSC_Reg::Slave_Address) = addr;
-    // Reg(hal::BSC_Reg::Data_Length) = len;
-
+    Reg(hal::BSC_Slave_Reg::Slave_Address) = addr; //Hardcoded slave address 1 for now
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 8); // enable device + I2C mode + transmit enable
 
     for (uint32_t i = 0; i < len; i++)
         Reg(hal::BSC_Slave_Reg::Data) = buffer[i];
 
-    // Reg(hal::BSC_Reg::Status) = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
-    // Reg(hal::BSC_Reg::Control) = (1 << 15) | (1 << 7); // zapoceti noveho prenosu (enable bsc + start transfer)
-
     //Wait_Ready();
-
-    // volatile uint32_t& d = Reg(hal::BSC_Slave_Reg::Data);
-    // char buf[64];
-    // sUART0.Write(itoa(d, buf, 2));
-    // sUART0.Write("\r\n");
-
 }
 
 void CI2C_Slave::Receive(uint8_t addr, char* buffer, uint32_t len)
