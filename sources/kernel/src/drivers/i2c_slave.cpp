@@ -16,16 +16,6 @@ volatile uint32_t& CI2C_Slave::Reg(hal::BSC_Slave_Reg reg)
     return mBSC_Base[static_cast<uint32_t>(reg)];
 }
 
-void CI2C_Slave::Wait_Ready()
-{
-    //TODO
-    // volatile uint32_t& s; = Reg(hal::BSC_Reg::Status);
-
-    // // pockame, dokud nebude ve status registru zapnuty ready bit
-    // while( !(s & (1 << 1)) )
-    //     ;
-}
-
 bool CI2C_Slave::Open()
 {
     if (!AI2C_Base::Open()) 
@@ -43,27 +33,52 @@ void CI2C_Slave::Close()
     Reg(hal::BSC_Slave_Reg::Control) = 0;
 }
 
-void CI2C_Slave::Send(uint8_t addr, const char* buffer, uint32_t len)
-{
-    Reg(hal::BSC_Slave_Reg::Slave_Address) = addr; //Hardcoded slave address 1 for now
-    Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 8); // enable device + I2C mode + transmit enable
-
-    for (uint32_t i = 0; i < len; i++)
-        Reg(hal::BSC_Slave_Reg::Data) = buffer[i];
-
-    //Wait_Ready();
-}
-
-void CI2C_Slave::Receive(uint8_t addr, char* buffer, uint32_t len)
+void CI2C_Slave::Set_Address(uint8_t addr)
 {
     Reg(hal::BSC_Slave_Reg::Slave_Address) = addr;
-    Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // zapoceti cteni (enable device + I2C mode + clear FIFO + receive enable)
+}
 
-    volatile uint32_t& f = Reg(hal::BSC_Slave_Reg::Flag);
-    while (f & (1 << 1))
-        ;
-
+void CI2C_Slave::Send(const char *buffer, uint32_t len)
+{
+    Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 8) | (1 << 9); // enable device + I2C mode + transmit enable + receive enable
+ 
     for (uint32_t i = 0; i < len; i++) {
-        buffer[i] = Reg(hal::BSC_Slave_Reg::Data);
+        Reg(hal::BSC_Slave_Reg::Data) = buffer[i];
+    }
+}
+
+bool CI2C_Slave::Receive(char* buffer, uint32_t len)
+{
+    uint32_t buffer_original_position = mBufferReadPosition;
+    for(int i = 0; i < len; i++) {
+        if(mBufferReadPosition == mBufferWritePosition) {//ran out of data to read - abort
+            mBufferReadPosition = buffer_original_position; //return buffer back to original position
+            return false;
+        }
+
+        buffer[i] = mBuffer[mBufferReadPosition];
+        mBufferReadPosition = (mBufferReadPosition + 1) % BUFFER_SIZE;
+    }
+
+    return true;
+}
+
+bool CI2C_Slave::Is_IRQ_Pending()
+{
+    volatile uint32_t& r = Reg(hal::BSC_Slave_Reg::RIS);
+    return r & (1 << 0);
+}
+
+void CI2C_Slave::IRQ_Callback()
+{
+    volatile uint32_t& f = Reg(hal::BSC_Slave_Reg::Flag);
+    while (!(f & (1 << 1)))
+    {
+        mBuffer[mBufferWritePosition] = Reg(hal::BSC_Slave_Reg::Data);
+        mBufferWritePosition = (mBufferWritePosition + 1) % BUFFER_SIZE;
+
+        //Stop reading when buffer is full
+        // if(mBufferReadPosition == mBufferWritePosition)
+        //     return;
     }
 }

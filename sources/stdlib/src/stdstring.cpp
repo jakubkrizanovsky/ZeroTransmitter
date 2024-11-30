@@ -5,7 +5,7 @@ namespace
     const char CharConvArr[] = "0123456789ABCDEF";
 }
 
-void itoa(unsigned int input, char* output, unsigned int base)
+char* itoa(unsigned int input, char* output, unsigned int base)
 {
 	int i = 0;
 
@@ -31,6 +31,8 @@ void itoa(unsigned int input, char* output, unsigned int base)
 		output[i - j] = output[j];
 		output[j] = c;
 	}
+
+	return output;
 }
 
 int atoi(const char* input)

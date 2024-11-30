@@ -4,6 +4,8 @@
 #include <interrupt_controller.h>
 #include <drivers/gpio.h>
 #include <drivers/timer.h>
+#include <drivers/i2c_master.h>
+#include <drivers/i2c_slave.h>
 #include <process/process_manager.h>
 #include <process/swi.h>
 
@@ -50,6 +52,14 @@ extern "C" void _internal_irq_handler()
     // casovac
     if (sTimer.Is_Timer_IRQ_Pending())
         sTimer.IRQ_Callback();
+
+    // i2c master 
+    if (sI2C1.Is_IRQ_Pending())
+        sI2C1.IRQ_Callback();
+
+    // i2c slave
+    if (sI2CSlave.Is_IRQ_Pending())
+        sI2CSlave.IRQ_Callback();
 }
 
 extern "C" void __attribute__((interrupt("FIQ"))) fast_interrupt_handler()

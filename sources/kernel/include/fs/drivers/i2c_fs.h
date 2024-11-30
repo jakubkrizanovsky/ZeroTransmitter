@@ -30,17 +30,21 @@ class CI2C_File final : public IFile
 
         virtual uint32_t Read(char* buffer, uint32_t num) override
         {
-            //TODO - ring buffer, interrupts
-
             if (num > 0 && buffer != nullptr)
             {
+                AI2C_Base* i2c;
                 if (mAddress == 1)
-                    sI2C1.Receive(mTargetAddress, buffer, num);
+                    i2c = &sI2C1;
 
                 if (mAddress == 2)
-                    sI2C1.Receive(mAddress, buffer, num);
+                    i2c = &sI2CSlave;
 
-                return num;
+                if(i2c->Receive(buffer, num)) {
+                    return num;
+                } else {
+                    //TODO - block
+                    return 0;
+                }
             }
 
             return 0;
@@ -53,10 +57,10 @@ class CI2C_File final : public IFile
             if (num > 0 && buffer != nullptr)
             {
                 if (mAddress == 1)
-                    sI2C1.Send(mTargetAddress, buffer, num);
+                    sI2C1.Send(buffer, num);
 
                 if (mAddress == 2)
-                    sI2CSlave.Send(mAddress, buffer, num);
+                    sI2CSlave.Send(buffer, num);
 
                 return num;
             }
@@ -96,6 +100,12 @@ class CI2C_File final : public IFile
             {
                 TI2C_IOCtl_Params* params = reinterpret_cast<TI2C_IOCtl_Params*>(ctlptr);
                 mTargetAddress = params->address;
+
+                //TODO
+                if(mAddress == 1) {
+                    sI2C1.Set_Address(mTargetAddress);
+                }
+
                 return true;
             }
             return false;
@@ -123,6 +133,10 @@ class CI2C_FS_Driver : public IFilesystem_Driver
 
             if (address == 2 && !sI2CSlave.Open())
                 return nullptr;
+
+            //TODO
+            if(address == 2)
+                sI2CSlave.Set_Address(address);
 
             CI2C_File* f = new CI2C_File(address);
 

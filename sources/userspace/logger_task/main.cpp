@@ -24,22 +24,22 @@ int main(int argc, char** argv)
 	params.char_length = NUART_Char_Length::Char_8;
 	ioctl(uart_file, NIOCtl_Operation::Set_Params, &params);
 
-	fputs(uart_file, "UART task starting!");
+	fputs(uart_file, "Logger task starting!");
 
-	char buf[16];
+	char buf[33];
 	char tickbuf[16];
-	bzero(buf, 16);
+	bzero(buf, 33);
 	bzero(tickbuf, 16);
 
 	uint32_t last_tick = 0;
 
-	uint32_t logpipe = pipe("log", 32);
+	uint32_t logpipe = pipe("log", 64);
 
 	while (true)
 	{
 		wait(logpipe, 1, 0x1000);
 
-		uint32_t v = read(logpipe, buf, 15);
+		uint32_t v = read(logpipe, buf, 32);
 		if (v > 0)
 		{
 			buf[v] = '\0';

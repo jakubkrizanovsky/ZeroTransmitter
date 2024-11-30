@@ -38,12 +38,25 @@ extern "C" int _kernel_main(void)
 	// inicializace souboroveho systemu
 	sFilesystem.Initialize();
 
+	sUART0.Open();
+	sUART0.Set_Baud_Rate(NUART_Baud_Rate::BR_115200);
+	sUART0.Set_Char_Length(NUART_Char_Length::Char_8);
+	volatile unsigned int tim;
+	char buf[10];
+	for(int i = 3; i > 0; i--) {
+		sUART0.Write(itoa(i, buf, 10));
+		sUART0.Write("\r\n");
+		for(tim = 0; tim < 5000000; tim++)
+			;
+	}
+	sUART0.Close();
+
 	// vytvoreni hlavniho systemoveho (idle) procesu
 	sProcessMgr.Create_Process(__init_task, __init_task_len, true);
 
 	// vytvoreni vsech tasku
 	// TODO: presunuti do init procesu a nejake inicializacni sekce
-	sProcessMgr.Create_Process(__sos_task, __sos_task_len, false);
+	//sProcessMgr.Create_Process(__sos_task, __sos_task_len, false);
 	sProcessMgr.Create_Process(__logger_task, __logger_task_len, false);
 	sProcessMgr.Create_Process(__i2c_master_task, __i2c_master_task_len, false);
 	sProcessMgr.Create_Process(__i2c_slave_task, __i2c_slave_task_len, false);

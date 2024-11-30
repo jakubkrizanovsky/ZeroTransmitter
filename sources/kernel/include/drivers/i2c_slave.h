@@ -7,9 +7,6 @@ class CI2C_Slave : public AI2C_Base
     protected:
         volatile uint32_t& Reg(hal::BSC_Slave_Reg reg);
 
-        // vycka, az je dokoncena probihajici I2C operace
-        void Wait_Ready();
-
     public:
         CI2C_Slave(unsigned long base, uint32_t pin_sda, uint32_t pin_scl, NGPIO_Function gpio_function);
 
@@ -18,10 +15,18 @@ class CI2C_Slave : public AI2C_Base
         // zavre driver
         void Close() override;
 
+        // nastavi I2C adresu - vlastni adresu
+        virtual void Set_Address(uint8_t addr) override;
+
         // odesle pres I2C na danou adresu obsah bufferu
-        void Send(uint8_t addr, const char* buffer, uint32_t len) override;
+        virtual void Send(const char* buffer, uint32_t len) override;
         // prijme z I2C z dane adresy obsah do bufferu o dane delce
-        void Receive(uint8_t addr, char* buffer, uint32_t len) override;
+        virtual bool Receive(char* buffer, uint32_t len) override;
+
+        // ceka IRQ?
+        virtual bool Is_IRQ_Pending() override;
+        // obslouzi IRQ
+        virtual void IRQ_Callback() override;
 };
 
 extern CI2C_Slave sI2CSlave;
