@@ -12,13 +12,26 @@
 class CI2C_File final : public IFile
 {
     private:
+        // kanal i2c
+        uint8_t mChannel;
         // vlastni I2C adresa
         uint8_t mAddress;
-        uint8_t mTargetAddress; 
+        // cilova I2C adresa
+        uint8_t mTargetAddress;
+
+        AI2C_Base* Active_Channel() {
+            if (mChannel == 1)
+                return &sI2C1;
+
+            if (mChannel == 3)
+                return &sI2CSlave;
+
+            return nullptr;
+        }
 
     public:
-        CI2C_File(uint8_t address)
-            : IFile(NFile_Type_Major::Character), mAddress(address), mTargetAddress(0)
+        CI2C_File(uint8_t channel)
+            : IFile(NFile_Type_Major::Character), mChannel(channel), mAddress(0), mTargetAddress(0)
         {
             //
         }
@@ -32,12 +45,7 @@ class CI2C_File final : public IFile
         {
             if (num > 0 && buffer != nullptr)
             {
-                AI2C_Base* i2c;
-                if (mAddress == 1)
-                    i2c = &sI2C1;
-
-                if (mAddress == 2)
-                    i2c = &sI2CSlave;
+                AI2C_Base* i2c = Active_Channel();
 
                 if(i2c->Receive(buffer, num)) {
                     return num;
@@ -52,15 +60,10 @@ class CI2C_File final : public IFile
 
         virtual uint32_t Write(const char* buffer, uint32_t num) override
         {
-            //TODO - ring buffer, interrupts
-
             if (num > 0 && buffer != nullptr)
             {
-                if (mAddress == 1)
-                    sI2C1.Send(buffer, num);
-
-                if (mAddress == 2)
-                    sI2CSlave.Send(buffer, num);
+                AI2C_Base* i2c = Active_Channel();
+                i2c->Send(buffer, num);
 
                 return num;
             }
@@ -70,14 +73,8 @@ class CI2C_File final : public IFile
 
         virtual bool Close() override
         {
-            if (mAddress == 0)
-                return false;
-
-            if (mAddress == 1)
-                sI2C1.Close();
-
-            if (mAddress == 2)
-                sI2CSlave.Close();
+            AI2C_Base* i2c = Active_Channel();
+            i2c->Close();
 
             mAddress = 0;
             mTargetAddress = 0;
@@ -99,11 +96,15 @@ class CI2C_File final : public IFile
             else if (dir == NIOCtl_Operation::Set_Params)
             {
                 TI2C_IOCtl_Params* params = reinterpret_cast<TI2C_IOCtl_Params*>(ctlptr);
-                mTargetAddress = params->address;
+                mAddress = params->address;
+                mTargetAddress = params->targetAddress;
 
-                //TODO
-                if(mAddress == 1) {
-                    sI2C1.Set_Address(mTargetAddress);
+                if(mChannel == 1) {
+                    sI2C1.Set_Address(mTargetAddress); //U mastera je potreba nastavic cilova adresa
+                }
+
+                if(mChannel == 3) {
+                    sI2CSlave.Set_Address(mAddress); //U slave je potreba nastavit vlastni adresa
                 }
 
                 return true;
@@ -122,23 +123,19 @@ class CI2C_FS_Driver : public IFilesystem_Driver
 
         virtual IFile* Open_File(const char* path, NFile_Open_Mode mode) override
         {
-            // jedina slozka path - vlastni i2c adresa (7bit - 1-127)
+            // jedina slozka path - kanal i2c
 
-            int address = atoi(path);
-            if (address == 0) // adresa nesmi byt 0
+            int channel = atoi(path);
+            if (channel != 1 && channel != 3) // zatim implementovany pouze kanal 1 a slave (kanal 3)
                 return nullptr;
 
-            if (address == 1 && !sI2C1.Open())
+            if (channel == 1 && !sI2C1.Open())
                 return nullptr;
 
-            if (address == 2 && !sI2CSlave.Open())
+            if (channel == 3 && !sI2CSlave.Open())
                 return nullptr;
 
-            //TODO
-            if(address == 2)
-                sI2CSlave.Set_Address(address);
-
-            CI2C_File* f = new CI2C_File(address);
+            CI2C_File* f = new CI2C_File(channel);
 
             return f;
         }
