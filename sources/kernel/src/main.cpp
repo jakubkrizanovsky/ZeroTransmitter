@@ -27,8 +27,11 @@ extern "C" unsigned int __sos_task_len;
 extern "C" unsigned char __logger_task[];
 extern "C" unsigned int __logger_task_len;
 
-extern "C" unsigned char __i2c_task[];
-extern "C" unsigned int __i2c_task_len;
+extern "C" unsigned char __i2c_master_task[];
+extern "C" unsigned int __i2c_master_task_len;
+
+extern "C" unsigned char __i2c_slave_task[];
+extern "C" unsigned int __i2c_slave_task_len;
 
 extern "C" int _kernel_main(void)
 {
@@ -42,7 +45,8 @@ extern "C" int _kernel_main(void)
 	// TODO: presunuti do init procesu a nejake inicializacni sekce
 	sProcessMgr.Create_Process(__sos_task, __sos_task_len, false);
 	sProcessMgr.Create_Process(__logger_task, __logger_task_len, false);
-	sProcessMgr.Create_Process(__i2c_task, __i2c_task_len, false);
+	sProcessMgr.Create_Process(__i2c_master_task, __i2c_master_task_len, false);
+	sProcessMgr.Create_Process(__i2c_slave_task, __i2c_slave_task_len, false);
 
 	// zatim zakazeme IRQ casovace
 	sInterruptCtl.Disable_Basic_IRQ(hal::IRQ_Basic_Source::Timer);

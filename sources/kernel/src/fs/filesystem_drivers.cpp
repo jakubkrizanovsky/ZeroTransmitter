@@ -3,6 +3,7 @@
 // includujeme prislusne drivery
 #include <fs/drivers/gpio_fs.h>
 #include <fs/drivers/uart_fs.h>
+#include <fs/drivers/i2c_fs.h>
 #include <fs/drivers/semaphore_fs.h>
 #include <fs/drivers/mutex_fs.h>
 #include <fs/drivers/condvar_fs.h>
@@ -13,6 +14,7 @@ const CFilesystem::TFS_Driver CFilesystem::gFS_Drivers[] = {
     // "skutecna" zarizeni
     { "GPIO_FS", "DEV:gpio", &fsGPIO_FS_Driver },
     { "UART_FS", "DEV:uart", &fsUART_FS_Driver },
+    { "I2C_FS", "DEV:i2c", &fsI2C_FS_Driver },
 
     // virtualni zarizeni
     { "Mutex", "SYS:mtx", &fsMutex_FS_Driver },

@@ -2,16 +2,16 @@
 
 #include <drivers/i2c_base.h>
 
-class CI2C_Slave : public AI2C_Base
+class CI2C_Master : public AI2C_Base
 {
     protected:
-        volatile uint32_t& Reg(hal::BSC_Slave_Reg reg);
+        volatile uint32_t& Reg(hal::BSC_Reg reg);
 
         // vycka, az je dokoncena probihajici I2C operace
         void Wait_Ready();
 
     public:
-        CI2C_Slave(unsigned long base, uint32_t pin_sda, uint32_t pin_scl, NGPIO_Function gpio_function);
+        CI2C_Master(unsigned long base, uint32_t pin_sda, uint32_t pin_scl, NGPIO_Function gpio_function);
 
         // otevre driver
         bool Open() override;
@@ -24,4 +24,4 @@ class CI2C_Slave : public AI2C_Base
         void Receive(uint8_t addr, char* buffer, uint32_t len) override;
 };
 
-extern CI2C_Slave sI2CSlave;
+extern CI2C_Master sI2C1;
