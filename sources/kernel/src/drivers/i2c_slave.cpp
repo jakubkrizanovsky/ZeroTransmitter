@@ -21,16 +21,16 @@ bool CI2C_Slave::Open()
     if (!AI2C_Base::Open()) 
         return false;
 
-    Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // enable device + I2C mode
+    Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // enable device + I2C mode + receive enable
 
     return true;
 }
 
 void CI2C_Slave::Close()
 {
-    AI2C_Base::Close();
-
     Reg(hal::BSC_Slave_Reg::Control) = 0;
+
+    AI2C_Base::Close();
 }
 
 void CI2C_Slave::Set_Address(uint8_t addr)

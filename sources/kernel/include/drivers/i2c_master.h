@@ -9,9 +9,7 @@ class CI2C_Master : public AI2C_Base
 
     public:
         CI2C_Master(unsigned long base, uint32_t pin_sda, uint32_t pin_scl, NGPIO_Function gpio_function);
-
-        // otevre driver
-        bool Open() override;
+        
         // zavre driver
         void Close() override;
 

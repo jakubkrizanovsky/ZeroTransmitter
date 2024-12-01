@@ -13,21 +13,11 @@ volatile uint32_t& CI2C_Master::Reg(hal::BSC_Reg reg)
     return mBSC_Base[static_cast<uint32_t>(reg)];
 }
 
-bool CI2C_Master::Open()
-{
-    if (!AI2C_Base::Open()) 
-        return false;
-
-    //Reg(hal::BSC_Reg::Control) = (1 << 15) /*| (1 << 7)*/ | (1 << 4) | (1 << 0); // zapoceti cteni (enable bsc + clear fifo + start transfer + read)
-
-    return true;
-}
-
 void CI2C_Master::Close()
 {
-    AI2C_Base::Close();
-
     Reg(hal::BSC_Reg::Control) = 0;
+
+    AI2C_Base::Close();
 }
 
 void CI2C_Master::Set_Address(uint8_t addr)
