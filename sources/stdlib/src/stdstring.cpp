@@ -53,6 +53,67 @@ int atoi(const char* input)
 	return output;
 }
 
+char* ftoa(float input, char* output, unsigned int decimal_places)
+{
+	char* ptr = output;
+
+    // Handle negative numbers
+    if (input < 0) {
+        *ptr++ = '-';
+        input = -input;
+    }
+
+    // Extract the integer part
+    int int_part = (int)input;
+    float fraction = input - int_part;
+
+    // Convert the integer part to a string
+    char int_str[12]; // Temporary buffer for the integer part
+    char* int_ptr = int_str;
+    if (int_part == 0) {
+        *int_ptr++ = '0';
+    } else {
+        while (int_part > 0) {
+            *int_ptr++ = '0' + (int_part % 10);
+            int_part /= 10;
+        }
+    }
+
+    // Reverse the integer part string and write to buffer
+    while (int_ptr != int_str) {
+        *ptr++ = *(--int_ptr);
+    }
+
+    // Add the decimal point
+    if (decimal_places > 0) {
+        *ptr++ = '.';
+    }
+
+    // Convert the fractional part to the specified number of decimal places
+    for (int i = 0; i < decimal_places; i++) {
+        fraction *= 10;
+        int digit = (int)fraction;
+        *ptr++ = '0' + digit;
+        fraction -= digit;
+    }
+
+    // Null-terminate the string
+    *ptr = '\0';
+
+    // Remove trailing zeros if any decimal places were specified
+    if (decimal_places > 0) {
+        char* end = ptr - 1;
+        while (end > output && *end == '0') {
+            *end-- = '\0';
+        }
+        if (end > output && *end == '.') {
+            *end = '\0'; // Remove the decimal point if no fractional part remains
+        }
+    }
+
+    return output;
+}
+
 char* strncpy(char* dest, const char *src, int num)
 {
 	int i;
