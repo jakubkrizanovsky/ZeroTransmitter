@@ -9,7 +9,7 @@
  * Task testujici I2C
  **/
 
-constexpr uint32_t sleep_time = 0x10000;
+constexpr uint32_t sleep_time = 0x1000;
 
 void log(uint32_t log_fd, const char* message) {
 	write(log_fd, message, 32);
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 	uint32_t logpipe = pipe("log", 128);
 	log(logpipe, "Master start");
 
-	uint32_t i2c_file = open("DEV:i2c/3", NFile_Open_Mode::Read_Write);
+	uint32_t i2c_file = open("DEV:i2c/1", NFile_Open_Mode::Read_Write);
 	TI2C_IOCtl_Params params;
 	params.address = 2;
 	params.targetAddress = 1;
@@ -33,8 +33,8 @@ int main(int argc, char** argv)
 	char msg_buffer[5];
 	bzero(msg_buffer, 5);
 
-	char fb[5];
-	bzero(fb, 5);
+	char fb[10];
+	bzero(fb, 10);
 
 	sleep(sleep_time);
 
@@ -42,9 +42,10 @@ int main(int argc, char** argv)
 	{
 		uint32_t num_read = read(i2c_file, msg_buffer, 5);
 		if(num_read) {
-			float f = *(float*) msg_buffer;
-			strncpy(log_buffer + 6, ftoa(f, fb, 2), 5);
-			log_buffer[11] = 0;
+			char type = msg_buffer[0];
+			float f = *(float*) (msg_buffer+1);
+			log_buffer[6] = type;
+			strncpy(log_buffer + 7, ftoa(f, fb, 2), 10);
 			log(logpipe, log_buffer);
 		} else {
 			log(logpipe, "No data to read");
