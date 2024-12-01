@@ -23,10 +23,6 @@ class CI2C_Master : public AI2C_Base
         // prijme z I2C z dane adresy obsah do bufferu o dane delce
         virtual bool Receive(char* buffer, uint32_t len) override;
 
-        // ceka IRQ?
-        virtual bool Is_IRQ_Pending() override;
-        // obslouzi IRQ
-        virtual void IRQ_Callback() override;
 };
 
 extern CI2C_Master sI2C1;

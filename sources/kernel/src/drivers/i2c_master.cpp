@@ -51,24 +51,16 @@ bool CI2C_Master::Receive(char* buffer, uint32_t len)
 {
     Reg(hal::BSC_Reg::Data_Length) = len;
 
-    Reg(hal::BSC_Reg::Status) = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
+    volatile uint32_t& s = Reg(hal::BSC_Reg::Status);
+    s = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
     Reg(hal::BSC_Reg::Control) = (1 << 15) | (1 << 7) | (1 << 0); // zapoceti cteni (enable bsc + clear fifo + start transfer + read)
+
+    // wait for operation to finish
+    while (!(s & (1 << 1)))
+        ;
 
     for (uint32_t i = 0; i < len; i++)
         buffer[i] = Reg(hal::BSC_Reg::Data_FIFO);
 
-    return true; //TODO - buffered
-}
-
-bool CI2C_Master::Is_IRQ_Pending()
-{
-    //volatile uint32_t& r = Reg(hal::BSC_Slave_Reg::RIS);
-    return false;//r & (1 << 0);
-}
-
-void CI2C_Master::IRQ_Callback()
-{
-
-    // mBuffer[mBufferWritePosition] = byte;
-    // mBufferWritePosition = (mBufferWritePosition + 1) % BUFFER_SIZE;
+    return true;
 }

@@ -24,9 +24,9 @@ class CI2C_Slave : public AI2C_Base
         virtual bool Receive(char* buffer, uint32_t len) override;
 
         // ceka IRQ?
-        virtual bool Is_IRQ_Pending() override;
+        bool Is_IRQ_Pending();
         // obslouzi IRQ
-        virtual void IRQ_Callback() override;
+        void IRQ_Callback();
 };
 
 extern CI2C_Slave sI2CSlave;

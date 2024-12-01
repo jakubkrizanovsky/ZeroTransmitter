@@ -53,10 +53,6 @@ extern "C" void _internal_irq_handler()
     if (sTimer.Is_Timer_IRQ_Pending())
         sTimer.IRQ_Callback();
 
-    // i2c master 
-    if (sI2C1.Is_IRQ_Pending())
-        sI2C1.IRQ_Callback();
-
     // i2c slave
     if (sI2CSlave.Is_IRQ_Pending())
         sI2CSlave.IRQ_Callback();

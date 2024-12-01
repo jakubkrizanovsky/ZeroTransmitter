@@ -44,9 +44,4 @@ class AI2C_Base {
         virtual void Send(const char* buffer, uint32_t len) = 0;
         // prijme z I2C z dane adresy obsah do bufferu o dane delce
         virtual bool Receive( char* buffer, uint32_t len) = 0;
-
-        // ceka IRQ?
-        virtual bool Is_IRQ_Pending() = 0;
-        // obslouzi IRQ
-        virtual void IRQ_Callback() = 0;
 };

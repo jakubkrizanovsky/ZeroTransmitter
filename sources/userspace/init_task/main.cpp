@@ -1,7 +1,5 @@
 #include <stdfile.h>
 
-#include <process/process_manager.h>
-
 int main(int argc, char** argv)
 {
 	// systemovy init task startuje jako prvni, a ma nejnizsi prioritu ze vsech - bude se tedy planovat v podstate jen tehdy,
