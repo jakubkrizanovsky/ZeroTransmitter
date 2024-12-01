@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 
 	uint32_t last_tick = 0;
 
-	uint32_t logpipe = pipe("log", 64);
+	uint32_t logpipe = pipe("log", 128);
 
 	while (true)
 	{
