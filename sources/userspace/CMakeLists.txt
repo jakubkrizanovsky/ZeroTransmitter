@@ -37,5 +37,5 @@ ADD_USERSPACE_EXECUTABLE(init_task init_task/main.cpp)
 # volitelne tasky pro ruzne ulohy
 ADD_USERSPACE_EXECUTABLE(sos_task sos_task/main.cpp)
 ADD_USERSPACE_EXECUTABLE(logger_task logger_task/main.cpp)
-ADD_USERSPACE_EXECUTABLE(i2c_master_task i2c_master_task/main.cpp)
-ADD_USERSPACE_EXECUTABLE(i2c_slave_task i2c_slave_task/main.cpp)
+ADD_USERSPACE_EXECUTABLE(i2c_master_task i2c_universal_task2/main.cpp)
+ADD_USERSPACE_EXECUTABLE(i2c_slave_task i2c_universal_task/main.cpp)
