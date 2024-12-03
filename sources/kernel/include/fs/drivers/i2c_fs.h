@@ -120,42 +120,42 @@ class CI2C_File final : public IFile
         }
 
         virtual bool Connect_Master() {
-            char buf[3];
-            bzero(buf, 3);
+            char buf[4];
+            bzero(buf, 4);
             
             bool ack = false;
-            while (!ack || strncmp(buf, "ack", 3)) {
-                sI2C1.Send("syn", 3);
+            while (!ack || strncmp(buf, "ack", 4)) {
+                sI2C1.Send("syn", 4);
 
                 sUART0.Write("\r\nMaster waiting for ack");
                 TSWI_Result target;
                 sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
-                ack = sI2C1.Receive(buf, 3);
+                ack = sI2C1.Receive(buf, 4);
             }
             
             return true;
         }
 
         virtual bool Connect_Slave() {
-            char buf[3];
-            bzero(buf, 3);
+            char buf[4];
+            bzero(buf, 4);
             
             bool syn = false;
-            while (!syn || strncmp(buf, "syn", 3)) {
+            while (!syn || strncmp(buf, "syn", 4)) {
 
                 sUART0.Write("\r\nSlave waiting for syn");
 
                 TSWI_Result target;
                 sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
-                syn = sI2CSlave.Receive(buf, 3);
+                syn = sI2CSlave.Receive(buf, 4);
             }
 
-            sI2CSlave.Send("ack", 3);
+            sI2CSlave.Send("ack", 4);
 
-            //Clear buffer of extra syn
-            while(sI2CSlave.Receive(buf, 3))
+            //Clear buffer of extra "syn"s
+            while(sI2CSlave.Receive(buf, 1))
                 ;
             
             return true;

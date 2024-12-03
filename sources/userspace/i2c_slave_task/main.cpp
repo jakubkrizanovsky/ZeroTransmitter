@@ -78,13 +78,13 @@ bool select_master(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* flo
 	bzero(msg_buffer, 5);
 
 	//Send desired role to other process
-	write(i2c_fd, desired_role, 3);
+	write(i2c_fd, desired_role, 4);
 
 	//Read other process' desired role
-	uint32_t num_read = read(i2c_fd, msg_buffer, 3);
+	uint32_t num_read = read(i2c_fd, msg_buffer, 4);
 	while(num_read == 0) {
 		sleep(sleep_time);
-		num_read = read(i2c_fd, msg_buffer, 3);
+		num_read = read(i2c_fd, msg_buffer, 4);
 	}
 
 	if(strncmp(desired_role, msg_buffer, 3) == 0) {
