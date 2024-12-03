@@ -40,6 +40,9 @@ void CI2C_Slave::Set_Address(uint8_t addr)
 
 void CI2C_Slave::Send(const char *buffer, uint32_t len)
 {
+    sUART0.Write("\r\nSlave sending: ");
+    sUART0.Write(buffer, len);
+
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 8) | (1 << 9); // enable device + I2C mode + transmit enable + receive enable
  
     for (uint32_t i = 0; i < len; i++) {
@@ -59,6 +62,9 @@ bool CI2C_Slave::Receive(char* buffer, uint32_t len)
         buffer[i] = mBuffer[mBufferReadPosition];
         mBufferReadPosition = (mBufferReadPosition + 1) % BUFFER_SIZE;
     }
+
+    sUART0.Write("\r\nSlave received: ");
+    sUART0.Write(buffer, len);
 
     return true;
 }

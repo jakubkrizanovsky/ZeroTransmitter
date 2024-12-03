@@ -1,5 +1,7 @@
 #include <drivers/i2c_master.h>
+#include <drivers/uart.h>
 
+CI2C_Master sI2C0(hal::BSC0_Base, 0, 1, NGPIO_Function::Alt_0);
 CI2C_Master sI2C1(hal::BSC1_Base, 2, 3, NGPIO_Function::Alt_0);
 
 CI2C_Master::CI2C_Master(unsigned long base, uint32_t pin_sda, uint32_t pin_scl, NGPIO_Function gpio_function)
@@ -27,6 +29,9 @@ void CI2C_Master::Set_Address(uint8_t addr)
 
 void CI2C_Master::Send(const char* buffer, uint32_t len)
 {
+    sUART0.Write("\r\nMaster sending: ");
+    sUART0.Write(buffer, len);
+
     Reg(hal::BSC_Reg::Data_Length) = len;
 
     Reg(hal::BSC_Reg::Status) = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
@@ -54,6 +59,9 @@ bool CI2C_Master::Receive(char* buffer, uint32_t len)
 
     if(s & (1 << 8)) // slave NACK
         return false;
+
+    sUART0.Write("\r\nMaster received: ");
+    sUART0.Write(buffer, len);
 
     return true;
 }

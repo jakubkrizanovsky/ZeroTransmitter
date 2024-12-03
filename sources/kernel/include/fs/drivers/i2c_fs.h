@@ -99,17 +99,61 @@ class CI2C_File final : public IFile
                 mAddress = params->address;
                 mTargetAddress = params->targetAddress;
 
-                if(mChannel == 1) {
-                    sI2C1.Set_Address(mTargetAddress); //U mastera je potreba nastavic cilova adresa
+                
+                if(mChannel <= 2) {
+                    Active_Channel()->Set_Address(mTargetAddress); //U mastera je potreba nastavit cilova adresa
+                    Connect_Master();
                 }
 
                 if(mChannel == 3) {
                     sI2CSlave.Set_Address(mAddress); //U slave je potreba nastavit vlastni adresa
+                    Connect_Slave();
                 }
 
                 return true;
             }
             return false;
+        }
+
+        virtual bool Connect_Master() {
+            char buf[4];
+            bzero(buf, 4);
+            volatile int tim;
+
+            
+            bool ack = false;
+            while (!ack || strncmp(buf, "ack", 4)) {
+                sI2C1.Send("syn", 4);
+
+                sUART0.Write("\r\nMaster waiting for ack");
+                TSWI_Result target;
+                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
+
+                ack = sI2C1.Receive(buf, 4);
+            }
+            
+            return true;
+        }
+
+        virtual bool Connect_Slave() {
+            char buf[4];
+            bzero(buf, 4);
+            volatile int tim;
+            
+            bool syn = false;
+            while (!syn || strncmp(buf, "syn", 4)) {
+
+                sUART0.Write("\r\nSlave waiting for syn");
+
+                TSWI_Result target;
+                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
+
+                syn = sI2CSlave.Receive(buf, 4);
+            }
+
+            sI2CSlave.Send("ack", 4);
+            
+            return true;
         }
 };
 
@@ -126,7 +170,10 @@ class CI2C_FS_Driver : public IFilesystem_Driver
             // jedina slozka path - kanal i2c
 
             int channel = atoi(path);
-            if (channel != 1 && channel != 3) // zatim implementovany pouze kanal 1 a slave (kanal 3)
+            if (channel != 0 || channel != 1 || channel != 3) // mame master kanaly 0, 1 a slave kanal 3
+                return nullptr;
+
+            if (channel == 1 && !sI2C0.Open())
                 return nullptr;
 
             if (channel == 1 && !sI2C1.Open())

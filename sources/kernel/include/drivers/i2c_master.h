@@ -23,4 +23,5 @@ class CI2C_Master : public AI2C_Base
 
 };
 
+extern CI2C_Master sI2C0;
 extern CI2C_Master sI2C1;
