@@ -173,7 +173,7 @@ class CI2C_FS_Driver : public IFilesystem_Driver
             // jedina slozka path - kanal i2c
 
             int channel = atoi(path);
-            if (channel != 0 || channel != 1 || channel != 3) // mame master kanaly 0, 1 a slave kanal 3
+            if (channel != 0 && channel != 1 && channel != 3) // mame master kanaly 0, 1 a slave kanal 3
                 return nullptr;
 
             if (channel == 0 && !sI2C0.Open())
