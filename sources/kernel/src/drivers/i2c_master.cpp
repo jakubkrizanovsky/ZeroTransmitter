@@ -34,12 +34,16 @@ void CI2C_Master::Send(const char* buffer, uint32_t len)
 
     Reg(hal::BSC_Reg::Data_Length) = len;
 
-    Reg(hal::BSC_Reg::Status) = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
+    volatile uint32_t& s = Reg(hal::BSC_Reg::Status);
+    s = (1 << 9) | (1 << 8) | (1 << 1); // reset "slave clock hold", "slave fail" a "status" bitu
     Reg(hal::BSC_Reg::Control) = (1 << 15) | (1 << 7) | (1 << 4); // zapoceti noveho prenosu (enable bsc + start transfer)
     
-    for (uint32_t i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++)
         Reg(hal::BSC_Reg::Data_FIFO) = buffer[i];
-    }
+
+    // wait for operation to finish
+    while (!(s & (1 << 1)))
+        ;
 }
 
 bool CI2C_Master::Receive(char* buffer, uint32_t len)

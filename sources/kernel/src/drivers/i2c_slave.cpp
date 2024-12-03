@@ -22,6 +22,7 @@ bool CI2C_Slave::Open()
         return false;
 
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // enable device + I2C mode + receive enable
+    Reg(hal::BSC_Slave_Reg::IFLS) = 0; // Interrupt on FIFO 1/8 full
 
     return true;
 }
@@ -52,13 +53,11 @@ void CI2C_Slave::Send(const char *buffer, uint32_t len)
 
 bool CI2C_Slave::Receive(char* buffer, uint32_t len)
 {
-    uint32_t buffer_original_position = mBufferReadPosition;
-    for(int i = 0; i < len; i++) {
-        if(mBufferReadPosition == mBufferWritePosition) {//ran out of data to read - abort
-            mBufferReadPosition = buffer_original_position; //return buffer back to original position
-            return false;
-        }
+    uint8_t available = (mBufferWritePosition + BUFFER_SIZE - mBufferReadPosition) % BUFFER_SIZE;
+    if(available < len) 
+        return false;
 
+    for(int i = 0; i < len; i++) {
         buffer[i] = mBuffer[mBufferReadPosition];
         mBufferReadPosition = (mBufferReadPosition + 1) % BUFFER_SIZE;
     }
@@ -82,9 +81,5 @@ void CI2C_Slave::IRQ_Callback()
     {
         mBuffer[mBufferWritePosition] = Reg(hal::BSC_Slave_Reg::Data);
         mBufferWritePosition = (mBufferWritePosition + 1) % BUFFER_SIZE;
-
-        //Stop reading when buffer is full
-        // if(mBufferReadPosition == mBufferWritePosition)
-        //     return;
     }
 }

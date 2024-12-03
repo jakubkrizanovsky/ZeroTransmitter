@@ -7,12 +7,16 @@
 /**
  * Slave task - reads data, determines whether value or trend is dangerous, logs value and trend and sends it to master via i2c
  **/
-constexpr bool debug = true;
 
-constexpr uint32_t sleep_time = 0x1000;
+//Whether extra data will be logged
+const bool debug = true;
+//Whether task wants to be the application master ("mst") or slave ("slv")
+const char* desired_role = "mst";
 
-constexpr float low_threshold = 3.5f;
-constexpr float high_threshold = 11.0f;
+const uint32_t sleep_time = 0x1000;
+
+const float low_threshold = 3.5f;
+const float high_threshold = 11.0f;
 
 //Data to transmit
 const float data[] = {
@@ -48,17 +52,51 @@ void log_trend(uint32_t log_fd, float trend, char* log_buffer, char* float_buffe
 	log(log_fd, log_buffer);
 }
 
-uint32_t open_connection() {
+uint32_t open_connection(uint32_t log_fd) {
 	//Open file
 	uint32_t i2c_file = open("DEV:i2c/3", NFile_Open_Mode::Write_Only);
+	if(debug) log(log_fd, "[SD] I2C slave");
+	// if (i2c_file == Invalid_Handle) {
+	// 	i2c_file = open("DEV:i2c/3", NFile_Open_Mode::Write_Only);
+	// 	if (debug) {
+	// 		log(log_fd, "[SD] I2C slave");
+	// 	}
+	// } else if (debug) {
+	// 	log(log_fd, "[SD] I2C master");
+	// }
 
 	// Set addreses 
 	TI2C_IOCtl_Params params;
-	params.address = 1;
-	params.targetAddress = 2;
+	params.address = 2;
+	params.targetAddress = 1;
 	ioctl(i2c_file, NIOCtl_Operation::Set_Params, &params);
 
 	return i2c_file;
+}
+
+bool select_master(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* float_buffer) {
+	bzero(msg_buffer, 5);
+
+	//Send desired role to other process
+	write(i2c_fd, desired_role, 3);
+
+	//Read other process' desired role
+	uint32_t num_read = read(i2c_fd, msg_buffer, 3);
+	while(num_read == 0) {
+		sleep(sleep_time);
+		num_read = read(i2c_fd, msg_buffer, 3);
+	}
+
+	if(strncmp(desired_role, msg_buffer, 3) == 0) {
+		//Both want to be the same role - pick master by lowest address
+		TI2C_IOCtl_Params params;
+		ioctl(i2c_fd, NIOCtl_Operation::Get_Params, &params);
+		if (debug) log(log_fd, "[SD] Both want to be same");
+
+		return params.address < params.targetAddress;
+	}
+
+	return strncmp(desired_role, "mst", 3) == 0;
 }
 
 float calculate_trend(float last_value, float current_value) {
@@ -106,10 +144,21 @@ int main(int argc, char** argv)
 	log(logpipe, "[S] Slave starting");
 
 	// Open i2c connection
-	uint32_t i2c_file = open_connection();
+	uint32_t i2c_file = open_connection(logpipe);
+
+	if(debug) log(logpipe, "[SD] Connected");
+
+	bool app_m = select_master(i2c_file, msg_buffer, logpipe, float_buffer);
+	if(debug) {
+		if(app_m) {
+			log(logpipe, "[SD] Application master");
+		} else {
+			log(logpipe, "[SD] Application slave");
+		}
+	}
 
 	// Wait a bit
-	sleep(sleep_time);
+	sleep(10 * sleep_time);
 
 	float* f_ptr = (float*) data;
 	while (f_ptr < (data + data_len))

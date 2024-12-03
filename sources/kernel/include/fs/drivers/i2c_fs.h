@@ -91,7 +91,8 @@ class CI2C_File final : public IFile
             if (dir == NIOCtl_Operation::Get_Params)
             {
                 TI2C_IOCtl_Params* params = reinterpret_cast<TI2C_IOCtl_Params*>(ctlptr);
-                params->address = mTargetAddress;
+                params->address = mAddress;
+                params->targetAddress = mTargetAddress;
                 return true;
             }
 
@@ -119,42 +120,43 @@ class CI2C_File final : public IFile
         }
 
         virtual bool Connect_Master() {
-            char buf[4];
-            bzero(buf, 4);
-            volatile int tim;
-
+            char buf[3];
+            bzero(buf, 3);
             
             bool ack = false;
-            while (!ack || strncmp(buf, "ack", 4)) {
-                sI2C1.Send("syn", 4);
+            while (!ack || strncmp(buf, "ack", 3)) {
+                sI2C1.Send("syn", 3);
 
                 sUART0.Write("\r\nMaster waiting for ack");
                 TSWI_Result target;
                 sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
-                ack = sI2C1.Receive(buf, 4);
+                ack = sI2C1.Receive(buf, 3);
             }
             
             return true;
         }
 
         virtual bool Connect_Slave() {
-            char buf[4];
-            bzero(buf, 4);
-            volatile int tim;
+            char buf[3];
+            bzero(buf, 3);
             
             bool syn = false;
-            while (!syn || strncmp(buf, "syn", 4)) {
+            while (!syn || strncmp(buf, "syn", 3)) {
 
                 sUART0.Write("\r\nSlave waiting for syn");
 
                 TSWI_Result target;
                 sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
-                syn = sI2CSlave.Receive(buf, 4);
+                syn = sI2CSlave.Receive(buf, 3);
             }
 
-            sI2CSlave.Send("ack", 4);
+            sI2CSlave.Send("ack", 3);
+
+            //Clear buffer of extra syn
+            while(sI2CSlave.Receive(buf, 3))
+                ;
             
             return true;
         }
@@ -171,7 +173,6 @@ class CI2C_FS_Driver : public IFilesystem_Driver
         virtual IFile* Open_File(const char* path, NFile_Open_Mode mode) override
         {
             // jedina slozka path - kanal i2c
-
             int channel = atoi(path);
             if (channel != 0 && channel != 1 && channel != 3) // mame master kanaly 0, 1 a slave kanal 3
                 return nullptr;

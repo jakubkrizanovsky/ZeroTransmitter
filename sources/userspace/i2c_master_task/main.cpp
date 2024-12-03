@@ -7,9 +7,11 @@
  **/
 
 //Whether extra data will be logged
-constexpr bool debug = true;
+const bool debug = true;
+//Whether task wants to be the application master ("mst") or slave ("slv")
+const char* desired_role = "mst";
 
-constexpr uint32_t sleep_time = 0x1000;
+const uint32_t sleep_time = 0x1000;
 
 void log(uint32_t log_fd, const char* message) {
 	write(log_fd, message, 32);
@@ -22,17 +24,56 @@ void log_value(uint32_t log_fd, float value, char* log_buffer, char* float_buffe
 	log(log_fd, log_buffer);
 }
 
-uint32_t open_connection() {
+uint32_t open_connection(uint32_t log_fd) {
 	//Open file
-	uint32_t i2c_file = open("DEV:i2c/1", NFile_Open_Mode::Read_Only);
+	uint32_t i2c_file = open("DEV:i2c/1", NFile_Open_Mode::Read_Write);
+	if(debug) log(log_fd, "[MD] I2C master");
+	// if (i2c_file == Invalid_Handle) {
+	// 	i2c_file = open("DEV:i2c/3", NFile_Open_Mode::Read_Write);
+	// 	if(i2c_file == Invalid_Handle) {
+	// 		log(log_fd, "[M] Failed opening i2c file");
+	// 		terminate(1);
+	// 	}
+
+	// 	if (debug) {
+	// 		log(log_fd, "[MD] I2C slave");
+	// 	}
+	// } else if (debug) {
+	// 	log(log_fd, "[MD] I2C master");
+	// }
 
 	// Set addreses 
 	TI2C_IOCtl_Params params;
-	params.address = 2;
-	params.targetAddress = 1;
+	params.address = 1;
+	params.targetAddress = 2;
 	ioctl(i2c_file, NIOCtl_Operation::Set_Params, &params);
 
 	return i2c_file;
+}
+
+bool select_master(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd) {
+	bzero(msg_buffer, 5);
+
+	//Send desired role to other process
+	write(i2c_fd, desired_role, 3);
+
+	//Read other process' desired role
+	uint32_t num_read = read(i2c_fd, msg_buffer, 3);
+	while(num_read == 0) {
+		sleep(sleep_time);
+		num_read = read(i2c_fd, msg_buffer, 3);
+	}
+
+	if(strncmp(desired_role, msg_buffer, 3) == 0) {
+		//Both want to be the same role - pick master by lowest address
+		TI2C_IOCtl_Params params;
+		ioctl(i2c_fd, NIOCtl_Operation::Get_Params, &params);
+		if (debug) log(log_fd, "[MD] Both want to be same");
+
+		return params.address < params.targetAddress;
+	}
+
+	return strncmp(desired_role, "mst", 3) == 0;
 }
 
 bool receive(uint32_t i2c_fd, char& type, float& value, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
@@ -77,7 +118,18 @@ int main(int argc, char** argv)
 	log(logpipe, "[M] Master starting");
 
 	// Open i2c connection
-	uint32_t i2c_file = open_connection();
+	uint32_t i2c_file = open_connection(logpipe);
+
+	if(debug) log(logpipe, "[MD] Connected");
+
+	bool app_m = select_master(i2c_file, msg_buffer, logpipe);
+	if(debug) {
+		if(app_m) {
+			log(logpipe, "[MD] Application master");
+		} else {
+			log(logpipe, "[MD] Application slave");
+		}
+	}
 
 	// Wait a bit
 	sleep(sleep_time);
