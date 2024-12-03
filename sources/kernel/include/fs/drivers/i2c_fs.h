@@ -20,6 +20,9 @@ class CI2C_File final : public IFile
         uint8_t mTargetAddress;
 
         AI2C_Base* Active_Channel() {
+            if (mChannel == 0)
+                return &sI2C0;
+
             if (mChannel == 1)
                 return &sI2C1;
 
@@ -173,7 +176,7 @@ class CI2C_FS_Driver : public IFilesystem_Driver
             if (channel != 0 || channel != 1 || channel != 3) // mame master kanaly 0, 1 a slave kanal 3
                 return nullptr;
 
-            if (channel == 1 && !sI2C0.Open())
+            if (channel == 0 && !sI2C0.Open())
                 return nullptr;
 
             if (channel == 1 && !sI2C1.Open())
