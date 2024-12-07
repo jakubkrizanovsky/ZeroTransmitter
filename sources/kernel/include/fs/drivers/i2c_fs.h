@@ -15,10 +15,11 @@ class CI2C_File final : public IFile
         uint8_t mChannelNumber;
         // kanal i2c
         AI2C_Base* mChannel;
+
         // vlastni I2C adresa
-        uint8_t mAddress;
+        uint8_t mAddress = 0;
         // cilova I2C adresa
-        uint8_t mTargetAddress;
+        uint8_t mTargetAddress = 0;
 
         // handshake pri pouziti master rozhrani
         virtual bool Connect_Master() {
@@ -26,7 +27,7 @@ class CI2C_File final : public IFile
             bzero(buf, 4);
             
             bool ack = false;
-            while (!ack || strncmp(buf, "ack", 4)) {
+            while(!ack || strncmp(buf, "ack", 4)) {
                 mChannel->Send("syn", 4);
 
                 TSWI_Result target;
@@ -44,7 +45,7 @@ class CI2C_File final : public IFile
             bzero(buf, 4);
             
             bool syn = false;
-            while (!syn || strncmp(buf, "syn", 4)) {
+            while(!syn || strncmp(buf, "syn", 4)) {
                 TSWI_Result target;
                 sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
@@ -62,7 +63,7 @@ class CI2C_File final : public IFile
 
     public:
         CI2C_File(uint8_t channelNumber, AI2C_Base* channel)
-            : IFile(NFile_Type_Major::Character), mChannelNumber(channelNumber), mChannel(channel), mAddress(0), mTargetAddress(0)
+            : IFile(NFile_Type_Major::Character), mChannelNumber(channelNumber), mChannel(channel)
         {
             //
         }
@@ -74,11 +75,10 @@ class CI2C_File final : public IFile
 
         virtual uint32_t Read(char* buffer, uint32_t num) override
         {
-            if (num > 0 && buffer != nullptr)
+            if(num > 0 && buffer != nullptr && 
+                    mChannel->Receive(buffer, num) && buffer[0] != 0) 
             {
-                if(mChannel->Receive(buffer, num) && buffer[0] != 0) {
-                    return num;
-                } 
+                return num;
             }
 
             return 0;
@@ -86,10 +86,8 @@ class CI2C_File final : public IFile
 
         virtual uint32_t Write(const char* buffer, uint32_t num) override
         {
-            if (num > 0 && buffer != nullptr)
-            {
+            if(num > 0 && buffer != nullptr) {
                 mChannel->Send(buffer, num);
-
                 return num;
             }
 
@@ -108,8 +106,7 @@ class CI2C_File final : public IFile
         virtual bool IOCtl(NIOCtl_Operation dir, void* ctlptr) override
         {
             // proces chce ziskat parametry - naformatujeme mu je do jim dodane struktury (v jeho adr. prostoru)
-            if (dir == NIOCtl_Operation::Get_Params)
-            {
+            if(dir == NIOCtl_Operation::Get_Params) {
                 TI2C_IOCtl_Params* params = reinterpret_cast<TI2C_IOCtl_Params*>(ctlptr);
                 params->address = mAddress;
                 params->targetAddress = mTargetAddress;
@@ -117,8 +114,7 @@ class CI2C_File final : public IFile
             }
 
             // proces chce nastavit parametry
-            else if (dir == NIOCtl_Operation::Set_Params)
-            {
+            else if(dir == NIOCtl_Operation::Set_Params) {
                 TI2C_IOCtl_Params* params = reinterpret_cast<TI2C_IOCtl_Params*>(ctlptr);
                 mAddress = params->address;
                 mTargetAddress = params->targetAddress;
@@ -135,6 +131,7 @@ class CI2C_File final : public IFile
 
                 return true;
             }
+
             return false;
         }
 };
@@ -155,7 +152,7 @@ class CI2C_FS_Driver : public IFilesystem_Driver
             int channelNumber = atoi(path);
 
             // na zakalade cisla kanalu zvolime driver a kanal
-            switch (channelNumber)
+            switch(channelNumber)
             {
                 case 0:
                     channel = &sI2C0;

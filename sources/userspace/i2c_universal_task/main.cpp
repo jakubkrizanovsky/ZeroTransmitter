@@ -4,28 +4,30 @@
 #include <mathf.h>
 
 /**
- * Master task - receives data from slaves using I2C and logs them to screen
+ * Universal task that can act as both master and slave during i2c communication
+ * Master - receives data from slaves using I2C and logs them to screen
+ * Slave - reads data, determines whether value or trend is dangerous, logs value and trend and sends it to master via i2c
  **/
 
 #pragma region configuration
 
-//Which interface of I2C will be used for communication ('1' or '3')
-const char i2c_interface = '1';
+//Which interface of I2C will be used for communication ('0', '1' or '3')
+const char i2c_interface = '0';
 //I2C address of this device (or task)
-const uint32_t address = 2;
+const uint32_t address = 1;
 //I2C address of target device (or task) to comunicate with
-const uint32_t target_address = 1;
+const uint32_t target_address = 2;
 //Whether task wants to be the application master ("mst") or slave ("slv")
-const char* desired_role = "slv";
+const char* desired_role = "mst";
 
 //Which letter logs will be identified with
 const char log_identifier = 'A';
 
-//Whether extra data will be logged
-const bool debug = true;
+//Whether extra debug information will be logged
+const bool debug = false;
 
 //Delay between reads, writes
-const uint32_t sleep_time = 0x1000;
+const uint32_t sleep_time = 0x100;
 
 //Thresholds determining dangerous values and trends
 const float low_threshold = 3.5f;
@@ -54,12 +56,14 @@ const uint8_t data_len = sizeof(data) / sizeof(float);
 
 #pragma region common
 
+// Logs a message to log file (which is then output to UART by logger task)
 void log(uint32_t log_fd, const char* message, char* log_buffer) {
 	strncpy(log_buffer, message, strlen(message) + 1);
 	log_buffer[1] = log_identifier;
 	write(log_fd, log_buffer, 32);
 }
 
+// Logs current value, either on slave before sending it or on master after receiving it
 void log_value(uint32_t log_fd, float value, char* log_buffer, char* float_buffer) {
 	bzero(log_buffer, 32);
 	strncpy(log_buffer, "[X] Value: ", 11);
@@ -67,13 +71,7 @@ void log_value(uint32_t log_fd, float value, char* log_buffer, char* float_buffe
 	log(log_fd, log_buffer, log_buffer);
 }
 
-void log_trend(uint32_t log_fd, float trend, char* log_buffer, char* float_buffer) {
-	bzero(log_buffer, 32);
-	strncpy(log_buffer, "[X] Trend: ", 11);
-	strncpy(log_buffer + 11, ftoa(trend, float_buffer, 2), strlen(float_buffer));
-	log(log_fd, log_buffer, log_buffer);
-}
-
+// Opens the i2c file and sets adresses, which opens the connection
 uint32_t open_connection(uint32_t log_fd, char* log_buffer) {
 	//Open file
 	bzero(log_buffer, 32);
@@ -96,6 +94,8 @@ uint32_t open_connection(uint32_t log_fd, char* log_buffer) {
 	return i2c_fd;
 }
 
+// Determines the role of this task based on its and others prefered role, and adresses
+// returns true for master, false for slave
 bool select_role(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer) {
 	bzero(msg_buffer, 5);
 
@@ -125,9 +125,10 @@ bool select_role(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_b
 
 #pragma region master
 
+// Receives data from slave
 bool master_receive(uint32_t i2c_fd, char& type, float& value, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
 	uint32_t num_read = read(i2c_fd, msg_buffer, 6);
-	if (num_read) {
+	if(num_read) {
 		type = msg_buffer[0];
 		value = *(float*) (msg_buffer+1);
 
@@ -140,18 +141,19 @@ bool master_receive(uint32_t i2c_fd, char& type, float& value, char* msg_buffer,
 		}
 
 		return true;
-	} else if (debug) {
+	} else if(debug) {
 		log(log_fd, "[XD] Nothing to receive", log_buffer);
 	}
 
 	return false;
 }
 
+// Master logic
 void master(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
 	char type;
 	float value;
 
-	while (true) {
+	while(true) {
 		// Receive data and log results in loop
 		bool received = master_receive(i2c_fd, type, value, msg_buffer, log_fd, log_buffer, float_buffer);
 		if(received) {
@@ -175,14 +177,25 @@ void master(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer
 
 #pragma region slave
 
+// Predicts the next value using linear extrapolation
 float slave_calculate_trend(float last_value, float current_value) {
 	return lerp(last_value, current_value, 2);
 }
 
+// Checks whether value or trend is dangerous (not between the thresholds)
 bool slave_is_dangerous(float value) {
 	return value < low_threshold || value > high_threshold;
 }
 
+// Logs calculated trend on slave before sending it to master
+void slave_log_trend(uint32_t log_fd, float trend, char* log_buffer, char* float_buffer) {
+	bzero(log_buffer, 32);
+	strncpy(log_buffer, "[X] Trend: ", 11);
+	strncpy(log_buffer + 11, ftoa(trend, float_buffer, 2), strlen(float_buffer));
+	log(log_fd, log_buffer, log_buffer);
+}
+
+// Sends data from slave to master
 void slave_send(uint32_t i2c_fd, char type, float value, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
 	msg_buffer[0] = type;
 	memcpy(&value, msg_buffer+1, 4);
@@ -198,6 +211,7 @@ void slave_send(uint32_t i2c_fd, char type, float value, char* msg_buffer, uint3
 	}
 }
 
+// Slave logic
 void slave(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
 	float last_value = -1; // -1 ... not initialized
 	float value;
@@ -207,7 +221,7 @@ void slave(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer,
 
 	float* f_ptr = (float*) data;
 
-	while (f_ptr < (data + data_len))
+	while(f_ptr < (data + data_len))
 	{
 		// Read next value
 		value = *f_ptr;
@@ -223,7 +237,7 @@ void slave(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_buffer,
 		// Log current value and trend if applicable
 		log_value(log_fd, value, log_buffer, float_buffer);
 		if(trend_set) {
-			log_trend(log_fd, trend, log_buffer, float_buffer);
+			slave_log_trend(log_fd, trend, log_buffer, float_buffer);
 		} else {
 			log(log_fd, "[X] Trend: -", log_buffer);
 		}
@@ -272,8 +286,9 @@ int main(int argc, char** argv) {
 	// Open i2c connection
 	uint32_t i2c_fd = open_connection(log_fd, log_buffer);
 
-	if(debug) log(log_fd, "[XD] Connected", log_buffer);
+	log(log_fd, "[X] Connected", log_buffer);
 
+	// Select role
 	bool app_master = select_role(i2c_fd, msg_buffer, log_fd, log_buffer);
 	if(debug) {
 		if(app_master) {

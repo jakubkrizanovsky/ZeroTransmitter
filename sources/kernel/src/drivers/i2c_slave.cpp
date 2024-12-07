@@ -1,7 +1,6 @@
 #include <drivers/i2c_slave.h>
 
 #include <drivers/gpio.h>
-#include <drivers/uart.h>
 
 CI2C_Slave sI2CSlave(hal::BSC_Slave_Base, 18, 19, NGPIO_Function::Alt_3);
 
@@ -18,11 +17,11 @@ volatile uint32_t& CI2C_Slave::Reg(hal::BSC_Slave_Reg reg)
 
 bool CI2C_Slave::Open()
 {
-    if (!AI2C_Base::Open()) 
+    if(!AI2C_Base::Open()) 
         return false;
 
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 9); // enable device + I2C mode + receive enable
-    Reg(hal::BSC_Slave_Reg::IFLS) = 0; // Interrupt on FIFO 1/8 full
+    Reg(hal::BSC_Slave_Reg::IFLS) = 0; // Lowest full level interrupt
 
     return true;
 }
@@ -41,14 +40,10 @@ void CI2C_Slave::Set_Address(uint8_t addr)
 
 void CI2C_Slave::Send(const char *buffer, uint32_t len)
 {
-    sUART0.Write("\r\nSlave sending: ");
-    sUART0.Write(buffer, len);
-
     Reg(hal::BSC_Slave_Reg::Control) = (1 << 0) | (1 << 2) | (1 << 8) | (1 << 9); // enable device + I2C mode + transmit enable + receive enable
  
-    for (uint32_t i = 0; i < len; i++) {
+    for(uint32_t i = 0; i < len; i++)
         Reg(hal::BSC_Slave_Reg::Data) = buffer[i];
-    }
 }
 
 bool CI2C_Slave::Receive(char* buffer, uint32_t len)
@@ -62,9 +57,6 @@ bool CI2C_Slave::Receive(char* buffer, uint32_t len)
         mBufferReadPosition = (mBufferReadPosition + 1) % BUFFER_SIZE;
     }
 
-    sUART0.Write("\r\nSlave received: ");
-    sUART0.Write(buffer, len);
-
     return true;
 }
 
@@ -77,8 +69,7 @@ bool CI2C_Slave::Is_IRQ_Pending()
 void CI2C_Slave::IRQ_Callback()
 {
     volatile uint32_t& f = Reg(hal::BSC_Slave_Reg::Flag);
-    while (!(f & (1 << 1)))
-    {
+    while(!(f & (1 << 1))) {
         mBuffer[mBufferWritePosition] = Reg(hal::BSC_Slave_Reg::Data);
         mBufferWritePosition = (mBufferWritePosition + 1) % BUFFER_SIZE;
     }
