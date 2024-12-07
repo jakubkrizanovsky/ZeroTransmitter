@@ -1,6 +1,5 @@
 #pragma once
 
-#include <drivers/uart.h>
 #include <drivers/i2c_master.h>
 #include <drivers/i2c_slave.h>
 #include <hal/peripherals.h>
@@ -12,29 +11,58 @@
 class CI2C_File final : public IFile
 {
     private:
+        // cislo kanalu i2c
+        uint8_t mChannelNumber;
         // kanal i2c
-        uint8_t mChannel;
+        AI2C_Base* mChannel;
         // vlastni I2C adresa
         uint8_t mAddress;
         // cilova I2C adresa
         uint8_t mTargetAddress;
 
-        AI2C_Base* Active_Channel() {
-            if (mChannel == 0)
-                return &sI2C0;
+        // handshake pri pouziti master rozhrani
+        virtual bool Connect_Master() {
+            char buf[4];
+            bzero(buf, 4);
+            
+            bool ack = false;
+            while (!ack || strncmp(buf, "ack", 4)) {
+                mChannel->Send("syn", 4);
 
-            if (mChannel == 1)
-                return &sI2C1;
+                TSWI_Result target;
+                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
 
-            if (mChannel == 3)
-                return &sI2CSlave;
+                ack = mChannel->Receive(buf, 4);
+            }
+            
+            return true;
+        }
 
-            return nullptr;
+        // handshake pri pouziti slave rozhrani
+        virtual bool Connect_Slave() {
+            char buf[4];
+            bzero(buf, 4);
+            
+            bool syn = false;
+            while (!syn || strncmp(buf, "syn", 4)) {
+                TSWI_Result target;
+                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
+
+                syn = mChannel->Receive(buf, 4);
+            }
+
+            mChannel->Send("ack", 4);
+
+            //Clear buffer of extra "syn"s received
+            while(mChannel->Receive(buf, 4))
+                ;
+            
+            return true;
         }
 
     public:
-        CI2C_File(uint8_t channel)
-            : IFile(NFile_Type_Major::Character), mChannel(channel), mAddress(0), mTargetAddress(0)
+        CI2C_File(uint8_t channelNumber, AI2C_Base* channel)
+            : IFile(NFile_Type_Major::Character), mChannelNumber(channelNumber), mChannel(channel), mAddress(0), mTargetAddress(0)
         {
             //
         }
@@ -48,14 +76,9 @@ class CI2C_File final : public IFile
         {
             if (num > 0 && buffer != nullptr)
             {
-                AI2C_Base* i2c = Active_Channel();
-
-                if(i2c->Receive(buffer, num)) {
+                if(mChannel->Receive(buffer, num) && buffer[0] != 0) {
                     return num;
-                } else {
-                    //TODO - block
-                    return 0;
-                }
+                } 
             }
 
             return 0;
@@ -65,8 +88,7 @@ class CI2C_File final : public IFile
         {
             if (num > 0 && buffer != nullptr)
             {
-                AI2C_Base* i2c = Active_Channel();
-                i2c->Send(buffer, num);
+                mChannel->Send(buffer, num);
 
                 return num;
             }
@@ -76,9 +98,7 @@ class CI2C_File final : public IFile
 
         virtual bool Close() override
         {
-            AI2C_Base* i2c = Active_Channel();
-            i2c->Close();
-
+            mChannel->Close();
             mAddress = 0;
             mTargetAddress = 0;
 
@@ -103,62 +123,19 @@ class CI2C_File final : public IFile
                 mAddress = params->address;
                 mTargetAddress = params->targetAddress;
 
-                
-                if(mChannel <= 2) {
-                    Active_Channel()->Set_Address(mTargetAddress); //U mastera je potreba nastavit cilova adresa
-                    Connect_Master();
+                if(mChannelNumber <= 2) {
+                    mChannel->Set_Address(mTargetAddress); //U mastera je potreba nastavit cilova adresa
+                    Connect_Master(); //Handshake
                 }
 
-                if(mChannel == 3) {
-                    sI2CSlave.Set_Address(mAddress); //U slave je potreba nastavit vlastni adresa
-                    Connect_Slave();
+                if(mChannelNumber == 3) {
+                    mChannel->Set_Address(mAddress); //U slave je potreba nastavit vlastni adresa
+                    Connect_Slave(); //Handshake
                 }
 
                 return true;
             }
             return false;
-        }
-
-        virtual bool Connect_Master() {
-            char buf[4];
-            bzero(buf, 4);
-            
-            bool ack = false;
-            while (!ack || strncmp(buf, "ack", 4)) {
-                sI2C1.Send("syn", 4);
-
-                sUART0.Write("\r\nMaster waiting for ack");
-                TSWI_Result target;
-                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
-
-                ack = sI2C1.Receive(buf, 4);
-            }
-            
-            return true;
-        }
-
-        virtual bool Connect_Slave() {
-            char buf[4];
-            bzero(buf, 4);
-            
-            bool syn = false;
-            while (!syn || strncmp(buf, "syn", 4)) {
-
-                sUART0.Write("\r\nSlave waiting for syn");
-
-                TSWI_Result target;
-                sProcessMgr.Handle_Process_SWI(NSWI_Process_Service::Sleep, 100, Deadline_Unchanged, 0, target);
-
-                syn = sI2CSlave.Receive(buf, 4);
-            }
-
-            sI2CSlave.Send("ack", 4);
-
-            //Clear buffer of extra "syn"s
-            while(sI2CSlave.Receive(buf, 1))
-                ;
-            
-            return true;
         }
 };
 
@@ -172,21 +149,35 @@ class CI2C_FS_Driver : public IFilesystem_Driver
 
         virtual IFile* Open_File(const char* path, NFile_Open_Mode mode) override
         {
-            // jedina slozka path - kanal i2c
-            int channel = atoi(path);
-            if (channel != 0 && channel != 1 && channel != 3) // mame master kanaly 0, 1 a slave kanal 3
+            AI2C_Base* channel;
+
+            // jedina slozka path - cislo kanalu i2c
+            int channelNumber = atoi(path);
+
+            // na zakalade cisla kanalu zvolime driver a kanal
+            switch (channelNumber)
+            {
+                case 0:
+                    channel = &sI2C0;
+                    break;
+                case 1:
+                    channel = &sI2C1;
+                    break;
+                case 3:
+                    channel = &sI2CSlave;
+                    break;
+
+                default: //neznamy kanal
+                    return nullptr;
+                    break;
+            }
+            
+            // otevreme driver
+            if(!channel->Open())
                 return nullptr;
 
-            if (channel == 0 && !sI2C0.Open())
-                return nullptr;
-
-            if (channel == 1 && !sI2C1.Open())
-                return nullptr;
-
-            if (channel == 3 && !sI2CSlave.Open())
-                return nullptr;
-
-            CI2C_File* f = new CI2C_File(channel);
+            // otevreme soubor
+            CI2C_File* f = new CI2C_File(channelNumber, channel);
 
             return f;
         }

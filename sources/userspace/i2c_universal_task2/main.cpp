@@ -55,7 +55,7 @@ const uint8_t data_len = sizeof(data) / sizeof(float);
 #pragma region common
 
 void log(uint32_t log_fd, const char* message, char* log_buffer) {
-	strncpy(log_buffer, message, strlen(message));
+	strncpy(log_buffer, message, strlen(message) + 1);
 	log_buffer[1] = log_identifier;
 	write(log_fd, log_buffer, 32);
 }
@@ -126,7 +126,7 @@ bool select_role(uint32_t i2c_fd, char* msg_buffer, uint32_t log_fd, char* log_b
 #pragma region master
 
 bool master_receive(uint32_t i2c_fd, char& type, float& value, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
-	uint32_t num_read = read(i2c_fd, msg_buffer, 5);
+	uint32_t num_read = read(i2c_fd, msg_buffer, 6);
 	if (num_read) {
 		type = msg_buffer[0];
 		value = *(float*) (msg_buffer+1);
@@ -186,7 +186,8 @@ bool slave_is_dangerous(float value) {
 void slave_send(uint32_t i2c_fd, char type, float value, char* msg_buffer, uint32_t log_fd, char* log_buffer, char* float_buffer) {
 	msg_buffer[0] = type;
 	memcpy(&value, msg_buffer+1, 4);
-	write(i2c_fd, msg_buffer, 5);
+	msg_buffer[5] = 0;
+	write(i2c_fd, msg_buffer, 6);
 
 	if(debug) {
 		bzero(log_buffer, 32);
@@ -258,8 +259,8 @@ int main(int argc, char** argv) {
 	char log_buffer[32];
 	bzero(log_buffer, 32);
 
-	char msg_buffer[5];
-	bzero(msg_buffer, 5);
+	char msg_buffer[6];
+	bzero(msg_buffer, 6);
 
 	char float_buffer[10];
 	bzero(float_buffer, 10);
