@@ -27,7 +27,7 @@ const char log_identifier = 'A';
 const bool debug = false;
 
 //Delay between reads, writes
-const uint32_t sleep_time = 0x100;
+const uint32_t sleep_time = 0x1000;
 
 //Thresholds determining dangerous values and trends
 const float low_threshold = 3.5f;
