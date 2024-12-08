@@ -21,23 +21,21 @@ extern "C" void Timer_Callback()
 extern "C" unsigned char __init_task[];
 extern "C" unsigned int __init_task_len;
 
-extern "C" unsigned char __sos_task[];
-extern "C" unsigned int __sos_task_len;
-
 extern "C" unsigned char __logger_task[];
 extern "C" unsigned int __logger_task_len;
 
-extern "C" unsigned char __i2c_master_task[];
-extern "C" unsigned int __i2c_master_task_len;
+extern "C" unsigned char __i2c_task_1[];
+extern "C" unsigned int __i2c_task_1_len;
 
-extern "C" unsigned char __i2c_slave_task[];
-extern "C" unsigned int __i2c_slave_task_len;
+extern "C" unsigned char __i2c_task_2[];
+extern "C" unsigned int __i2c_task_2_len;
 
 extern "C" int _kernel_main(void)
 {
 	// inicializace souboroveho systemu
 	sFilesystem.Initialize();
 
+	//TODO Jakub - remove
 	sUART0.Open();
 	sUART0.Set_Baud_Rate(NUART_Baud_Rate::BR_115200);
 	sUART0.Set_Char_Length(NUART_Char_Length::Char_8);
@@ -56,10 +54,9 @@ extern "C" int _kernel_main(void)
 
 	// vytvoreni vsech tasku
 	// TODO: presunuti do init procesu a nejake inicializacni sekce
-	//sProcessMgr.Create_Process(__sos_task, __sos_task_len, false);
 	sProcessMgr.Create_Process(__logger_task, __logger_task_len, false);
-	sProcessMgr.Create_Process(__i2c_master_task, __i2c_master_task_len, false);
-	sProcessMgr.Create_Process(__i2c_slave_task, __i2c_slave_task_len, false);
+	sProcessMgr.Create_Process(__i2c_task_1, __i2c_task_1_len, false);
+	sProcessMgr.Create_Process(__i2c_task_2, __i2c_task_2_len, false);
 
 	// zatim zakazeme IRQ casovace
 	sInterruptCtl.Disable_Basic_IRQ(hal::IRQ_Basic_Source::Timer);
